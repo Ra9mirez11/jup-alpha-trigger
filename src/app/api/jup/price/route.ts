@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const ids = searchParams.get('ids');
+  const inputMint = searchParams.get('inputMint');
+  const outputMint = searchParams.get('outputMint');
+  const amount = searchParams.get('amount');
   
   try {
     // 1. Price API Handling
@@ -18,26 +21,25 @@ export async function GET(request: Request) {
     }
 
     // 2. Quote API Handling
-    const inputMint = searchParams.get('inputMint');
-    const outputMint = searchParams.get('outputMint');
-    const amount = searchParams.get('amount');
-
     if (inputMint && outputMint && amount) {
-      const jupRes = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=50`);
+      const url = `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=50`;
+      console.log(`[JUP_PROXY] Fetching Quote: ${url}`);
+      
+      const jupRes = await fetch(url);
       
       if (!jupRes.ok) {
         const errorText = await jupRes.text();
-        console.error(`[JUP_PROXY_ERROR] Quote API returned ${jupRes.status}: ${errorText}`);
-        return NextResponse.json({ error: `Jupiter API Error ${jupRes.status}`, details: errorText }, { status: jupRes.status });
+        console.error(`[JUP_PROXY_ERROR] ${jupRes.status}: ${errorText}`);
+        return NextResponse.json({ error: `Jupiter Error ${jupRes.status}`, details: errorText }, { status: jupRes.status });
       }
 
       const data = await jupRes.json();
       return NextResponse.json(data);
     }
 
-    return NextResponse.json({ error: 'Invalid Parameters' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
   } catch (error: any) {
     console.error(`[JUP_PROXY_CRITICAL] ${error.message}`);
-    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }
