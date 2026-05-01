@@ -3,13 +3,20 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const ids = searchParams.get('ids');
+  const apiKey = process.env.JUPITER_API_KEY;
 
   try {
-    // Migrated to V3 as V2 returns 404
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+    };
+
+    // If API Key is configured, add it to headers
+    if (apiKey && apiKey !== 'YOUR_JUPITER_API_KEY') {
+      headers['x-api-key'] = apiKey;
+    }
+
     const res = await fetch(`https://api.jup.ag/price/v3?ids=${ids}`, {
-      headers: {
-        'Accept': 'application/json',
-      }
+      headers
     });
     
     if (!res.ok) {
