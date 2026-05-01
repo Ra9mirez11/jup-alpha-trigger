@@ -120,7 +120,7 @@ export default function JupAlphaTrigger() {
               <h1 className="text-2xl font-bold tracking-tighter text-primary">JUP ALPHA-TRIGGER</h1>
               <div className="flex items-center gap-2 text-xs text-secondary opacity-70">
                 <div className="status-pulse" />
-                SYSTEM_STABLE // API_V2_ACTIVE
+                SYSTEM_STABLE // API_V3_ACTIVE
               </div>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function JupAlphaTrigger() {
                 <div className="pt-4 mt-4 border-t border-secondary/10">
                    <p className="text-secondary opacity-60 uppercase text-[9px] mb-2 tracking-widest font-bold">Feedback Collector</p>
                    <div className="bg-secondary/5 p-3 rounded text-secondary italic">
-                      "API V2 Quote returns raw transaction data. It would be better to have an integrated SDK helper for transaction simulation directly in the response."
+                      "API V3 Quote returns raw transaction data. It would be better to have an integrated SDK helper for transaction simulation directly in the response."
                    </div>
                 </div>
               </div>
