@@ -4,10 +4,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const ids = searchParams.get('ids');
   
-  // If it's a Price API call
-  if (ids) {
-    const apiKey = process.env.JUPITER_API_KEY;
-    try {
+  try {
+    // 1. Price API Handling
+    if (ids) {
+      const apiKey = process.env.JUPITER_API_KEY;
       const headers: Record<string, string> = { 'Accept': 'application/json' };
       if (apiKey && apiKey !== 'YOUR_JUPITER_API_KEY') {
         headers['x-api-key'] = apiKey;
@@ -15,25 +15,29 @@ export async function GET(request: Request) {
       const res = await fetch(`https://api.jup.ag/price/v3?ids=${ids}`, { headers });
       const data = await res.json();
       return NextResponse.json(data);
-    } catch (error) {
-      return NextResponse.json({ error: 'Price API Proxy Error' }, { status: 500 });
     }
-  }
 
-  // If it's a Quote API call
-  const inputMint = searchParams.get('inputMint');
-  const outputMint = searchParams.get('outputMint');
-  const amount = searchParams.get('amount');
+    // 2. Quote API Handling
+    const inputMint = searchParams.get('inputMint');
+    const outputMint = searchParams.get('outputMint');
+    const amount = searchParams.get('amount');
 
-  if (inputMint && outputMint && amount) {
-    try {
-      const res = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=50`);
-      const data = await res.json();
+    if (inputMint && outputMint && amount) {
+      const jupRes = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=50`);
+      
+      if (!jupRes.ok) {
+        const errorText = await jupRes.text();
+        console.error(`[JUP_PROXY_ERROR] Quote API returned ${jupRes.status}: ${errorText}`);
+        return NextResponse.json({ error: `Jupiter API Error ${jupRes.status}`, details: errorText }, { status: jupRes.status });
+      }
+
+      const data = await jupRes.json();
       return NextResponse.json(data);
-    } catch (error) {
-      return NextResponse.json({ error: 'Quote API Proxy Error' }, { status: 500 });
     }
-  }
 
-  return NextResponse.json({ error: 'Invalid Parameters' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid Parameters' }, { status: 400 });
+  } catch (error: any) {
+    console.error(`[JUP_PROXY_CRITICAL] ${error.message}`);
+    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+  }
 }
