@@ -4,27 +4,26 @@
 **Date:** May 1, 2026
 
 ## 1. Executive Summary
-Jup Alpha-Trigger is a volatility monitoring dashboard that uses Jupiter's Price API V3 and Quote API V6 to detect rapid price drops and simulate automated trade execution. During the build process, we identified several critical discrepancies between the official documentation and the live implementation across multiple API versions.
+Jup Alpha-Trigger is a volatility monitoring dashboard that uses Jupiter's Price API V3 and Quote API V6 to detect rapid price drops and simulate automated trade execution. During the build process, we identified several critical discrepancies between the official documentation and the live implementation.
 
 ## 2. Technical Findings & Friction Points
 
 ### A. Price API V3 (Major Friction)
-- **Silent Deprecation of V2:** Documentation still points to `/v2`, which returns a 404 without a notice.
+- **Silent Deprecation of V2:** Documentation still points to `/v2`, which returns a 404.
 - **Breaking Schema Changes:** Removal of the `data` wrapper and renaming `price` to `usdPrice` is undocumented in the main portal view.
-- **Symbol Handling:** Using symbols instead of mints returns a 200 OK with an empty body, which is highly misleading for debugging.
+- **CORS Limitations:** No support for `localhost`, requiring a backend proxy for development.
 
-### B. Quote API V6 (Implementation Friction)
-- **Complex Response for Simple Actions:** The `v6/quote` response is highly optimized for complex routing but lacks a "Simplified Mode" for developers who just want to display a quick simulation. Navigating the `routePlan` nested structure for a basic UI preview adds unnecessary overhead.
-- **Simulation Helpers:** There is a lack of official utility functions to "dry-run" a quote without initiating a full transaction object, forcing developers to mock parts of the logic manually.
+### B. Quote API V6 (Critical Discovery)
+- **CORS Restricted:** Like the Price API, the Quote API V6 (quote-api.jup.ag) strictly blocks CORS requests from `localhost`. This forces developers to implement a backend proxy even for simple trade simulations or price comparisons. This significantly increases the barrier to entry for rapid prototyping in the browser.
+- **Complex Response Structure:** The `routePlan` nested structure in the V6 response is powerful for aggregators but overkill for simple applications, adding overhead for parsing basic quote data.
 
 ### C. Developer Portal
-- **Broken Links:** Multiple 404s in the documentation links within `developers.jup.ag`.
-- **CORS:** Lack of localhost support in Price API V3 requires proxying, increasing the barrier to entry for frontend developers.
+- **Broken Links:** Multiple documentation links within `developers.jup.ag` lead to 404 pages (verified on May 1st).
 
 ## 3. Actionable Suggestions
-1. **Schema Transparency:** Update all portal documentation to reflect the V3 root-level response and new field names.
-2. **Better Error Feedback:** Return clear error messages when symbols are used instead of mints.
-3. **Simplified Quote Response:** Offer an optional `simple=true` flag in the Quote API that returns a flattened object for UI previews.
+1. **Developer-Friendly CORS:** Allow `localhost` or providing a dedicated developer environment with relaxed CORS rules for rapid prototyping.
+2. **Unified Documentation:** Synchronize API rollouts with documentation updates to prevent "Silent 404" errors.
+3. **Error Transparency:** Provide clear JSON error messages when symbols are used instead of mints, rather than empty responses.
 
 ## 4. Conclusion
-Jupiter's APIs are world-class in performance but currently suffer from documentation lag. By fixing the versioning transparency and adding simple error messages for common developer mistakes (like using symbols), Jupiter can significantly reduce the "time-to-first-swap" for new builders.
+Jupiter's APIs are functionally superior, but the high level of friction in the developer experience (lack of CORS, documentation lag) makes them harder to adopt than alternatives. Fixing these small but impactful issues will secure Jupiter's position as the primary platform for Solana developers.

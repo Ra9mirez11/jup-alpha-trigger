@@ -104,7 +104,8 @@ export default function JupAlphaTrigger() {
     try {
       // Simulate calling Jupiter Quote API
       const token = TRACKED_TOKENS.find(t => t.id === tokenSymbol);
-      const res = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&outputMint=${token?.mint}&amount=100000000&slippageBps=50`);
+      // Use local proxy to avoid CORS 'Connection Refused' error
+      const res = await fetch(`/api/jup/price?inputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&outputMint=${token?.mint}&amount=100000000`);
       
       if (res.ok) {
         addDxLog(`[DX_FINDING] Quote V6 response received. Logic friction: nested 'routePlan' requires deep iteration for simple simulation.`);
