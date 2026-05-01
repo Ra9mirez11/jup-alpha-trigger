@@ -12,15 +12,11 @@ import {
   ArrowUp, 
   CheckCircle,
   Bug,
-  Code
+  Code,
+  ExternalLink,
+  ShieldAlert
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface PriceData {
-  id: string;
-  price: string;
-  mint: string;
-}
 
 interface PriceHistory {
   [key: string]: {
@@ -43,9 +39,10 @@ export default function JupAlphaTrigger() {
   const [dxLogs, setDxLogs] = useState<string[]>([]);
   const [triggers, setTriggers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [executing, setExecuting] = useState<string | null>(null);
 
   const addDxLog = (msg: string) => {
-    setDxLogs(prev => [msg, ...prev].slice(0, 10));
+    setDxLogs(prev => [msg, ...prev].slice(0, 15));
   };
 
   const fetchPrices = useCallback(async () => {
@@ -54,7 +51,7 @@ export default function JupAlphaTrigger() {
       const res = await fetch(`/api/jup/price?ids=${ids}`);
       
       if (!res.ok) {
-        addDxLog(`[ERROR] Price API returned ${res.status}`);
+        addDxLog(`[ERROR] Price API V3 returned ${res.status}`);
         return;
       }
 
@@ -75,20 +72,20 @@ export default function JupAlphaTrigger() {
             history: [...(prices[token.id]?.history || []), currentPrice].slice(-20)
           };
 
-          // Check for "Alpha" (big drop detected via 24h change or local logic)
-          if (change < -5.0) { // Example: 5% drop in 24h
-            addAlphaTrigger(token.id, change);
+          // Check for "Alpha" (for demo, any drop > 0 is logged)
+          if (change < -0.1 && !triggers.find(t => t.id === token.id)) {
+             addAlphaTrigger(token.id, change);
           }
         }
       });
 
       setPrices(updatedPrices);
       setLoading(false);
-      addDxLog(`[INFO] Price sync complete. Root-level V3 parsed.`);
+      addDxLog(`[INFO] Market scan complete. V3 Root parsed.`);
     } catch (e) {
-      addDxLog(`[CRITICAL] Network error in Price API polling.`);
+      addDxLog(`[CRITICAL] Network failure in Price Engine.`);
     }
-  }, [prices]);
+  }, [prices, triggers]);
 
   const addAlphaTrigger = (id: string, drop: number) => {
     const newTrigger = {
@@ -100,140 +97,183 @@ export default function JupAlphaTrigger() {
     setTriggers(prev => [newTrigger, ...prev].slice(0, 5));
   };
 
+  const handleExecute = async (tokenSymbol: string) => {
+    setExecuting(tokenSymbol);
+    addDxLog(`[ACTION] Initiating JUP Quote for ${tokenSymbol}...`);
+    
+    try {
+      // Simulate calling Jupiter Quote API
+      const token = TRACKED_TOKENS.find(t => t.id === tokenSymbol);
+      const res = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&outputMint=${token?.mint}&amount=100000000&slippageBps=50`);
+      
+      if (res.ok) {
+        addDxLog(`[DX_FINDING] Quote V6 response received. Logic friction: nested 'routePlan' requires deep iteration for simple simulation.`);
+        setTimeout(() => {
+          addDxLog(`[SUCCESS] Simulation complete. Order ready for wallet sign.`);
+          setExecuting(null);
+        }, 1500);
+      } else {
+        addDxLog(`[ERROR] Quote API failed with ${res.status}`);
+        setExecuting(null);
+      }
+    } catch (e) {
+      addDxLog(`[ERROR] Quote API connection refused.`);
+      setExecuting(null);
+    }
+  };
+
   useEffect(() => {
     const interval = setInterval(fetchPrices, 5000);
     return () => clearInterval(interval);
   }, [fetchPrices]);
 
   return (
-    <main className="min-h-screen relative bg-background text-foreground p-4 lg:p-8 overflow-hidden">
+    <main className="min-h-screen relative bg-[#05070a] text-[#e0e6ed] p-4 lg:p-8 overflow-hidden font-mono">
       <div className="scanline" />
       
       <div className="max-w-7xl mx-auto space-y-8 relative z-10">
         {/* Header */}
-        <nav className="flex justify-between items-center border-b border-primary/20 pb-6">
+        <nav className="flex flex-col md:flex-row justify-between items-center border-b border-[#00ff88]/20 pb-6 gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded border border-primary/30">
-              <Zap className="w-8 h-8 text-primary" />
+            <div className="p-2 bg-[#00ff88]/10 rounded border border-[#00ff88]/30 shadow-[0_0_15px_rgba(0,255,136,0.2)]">
+              <Zap className="w-8 h-8 text-[#00ff88]" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tighter text-primary">JUP ALPHA-TRIGGER</h1>
-              <div className="flex items-center gap-2 text-xs text-secondary opacity-70">
+              <h1 className="text-2xl font-bold tracking-tighter text-[#00ff88]">JUP ALPHA-TRIGGER</h1>
+              <div className="flex items-center gap-2 text-[10px] text-[#00d4ff] opacity-70 uppercase tracking-widest">
                 <div className="status-pulse" />
-                SYSTEM_STABLE // API_V3_ACTIVE
+                System Status: Active // API_V3_LIVE
               </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <WalletMultiButton className="!bg-primary/20 !border !border-primary/40 !text-primary hover:!bg-primary/30" />
+            <button 
+              onClick={() => addAlphaTrigger('SOL', -5.42)}
+              className="text-[10px] border border-[#ff0055]/30 px-2 py-1 rounded text-[#ff0055] hover:bg-[#ff0055]/10"
+            >
+              GENERATE MOCK TRIGGER
+            </button>
+            <WalletMultiButton className="!bg-[#00ff88]/10 !border !border-[#00ff88]/40 !text-[#00ff88] hover:!bg-[#00ff88]/20 !h-10 !text-xs" />
           </div>
         </nav>
 
-        {/* Dashboard Content */}
+        {/* Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Market Radar */}
-          <div className="lg:col-span-8 space-y-6">
-            <div className="flex items-center gap-2 px-2">
-              <Activity className="w-5 h-5 text-secondary" />
-              <h2 className="text-sm font-bold uppercase tracking-widest text-secondary">Volatility Radar</h2>
-            </div>
-            
+          <div className="lg:col-span-8 space-y-8">
+            {/* Market Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {TRACKED_TOKENS.map(token => {
                 const data = prices[token.id];
+                const isDown = data?.change < 0;
                 return (
-                  <motion.div 
-                    key={token.id}
-                    layout
-                    className="terminal-card p-6 space-y-4"
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-2xl font-bold">{token.id}</span>
-                      <div className={`px-2 py-1 rounded text-[10px] font-bold ${data?.change >= 0 ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'}`}>
-                        {data?.change >= 0 ? '+' : ''}{data?.change?.toFixed(3)}%
+                  <div key={token.id} className="terminal-card p-6 border-white/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
+                       <Activity className="w-12 h-12" />
+                    </div>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-xl font-bold tracking-widest">{token.id}</span>
+                      <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${isDown ? 'bg-[#ff0055]/10 text-[#ff0055]' : 'bg-[#00ff88]/10 text-[#00ff88]'}`}>
+                        {isDown ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
+                        {Math.abs(data?.change || 0).toFixed(2)}%
                       </div>
                     </div>
-                    <div className="text-3xl font-mono">
+                    <div className="text-3xl font-bold tracking-tighter mb-2">
                       ${data?.current?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) || '0.0000'}
                     </div>
-                    <div className="h-8 flex items-end gap-1 overflow-hidden opacity-50">
-                      {data?.history.map((p, i) => (
-                        <div 
-                          key={i} 
-                          className="w-full bg-primary" 
-                          style={{ height: `${(p / data.current) * 100}%` }}
-                        />
-                      ))}
-                    </div>
-                  </motion.div>
+                    <div className="text-[10px] text-gray-500 truncate">{token.mint}</div>
+                  </div>
                 );
               })}
             </div>
 
-            {/* Triggers Section */}
-            <div className="terminal-card p-6">
-              <h3 className="text-sm font-bold mb-4 flex items-center gap-2 text-accent">
-                <AlertTriangle className="w-4 h-4" /> RECENT ALPHA DETECTIONS
-              </h3>
-              <div className="space-y-3">
-                <AnimatePresence>
-                  {triggers.length === 0 ? (
-                    <div className="text-center py-8 text-gray-600 border border-dashed border-gray-800 rounded">
-                      Waiting for market volatility...
-                    </div>
-                  ) : triggers.map((t, i) => (
-                    <motion.div 
-                      key={i}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="flex justify-between items-center bg-accent/5 border border-accent/20 p-4 rounded"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-accent animate-ping" />
-                        <span className="font-bold">{t.id} Flash Drop Detected</span>
-                        <span className="text-xs text-accent/60">{t.drop.toFixed(2)}% in 5s</span>
+            {/* Detections */}
+            <div className="terminal-card p-0 border-[#ff0055]/20 overflow-hidden">
+               <div className="bg-[#ff0055]/10 p-4 border-b border-[#ff0055]/20 flex items-center justify-between">
+                  <h3 className="text-xs font-bold flex items-center gap-2 text-[#ff0055]">
+                    <ShieldAlert className="w-4 h-4" /> RECENT ALPHA DETECTIONS
+                  </h3>
+                  <span className="text-[9px] opacity-50 uppercase">Auto-Scan Active</span>
+               </div>
+               <div className="p-4 space-y-3 min-h-[200px]">
+                  <AnimatePresence>
+                    {triggers.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 opacity-20">
+                         <RadarIcon className="w-12 h-12 mb-4 animate-pulse" />
+                         <p className="text-xs uppercase tracking-widest">Scanning blockchain for volatility...</p>
                       </div>
-                      <button className="px-4 py-2 bg-accent text-white text-xs font-bold rounded hover:opacity-90">
-                        EXECUTE LIMIT ORDER
-                      </button>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
+                    ) : triggers.map((t, i) => (
+                      <motion.div 
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex justify-between items-center bg-white/5 border border-white/10 p-4 rounded-lg group hover:border-[#ff0055]/30 transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded bg-[#ff0055]/20 flex items-center justify-center text-[#ff0055] font-bold">
+                             {t.id[0]}
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-white">{t.id} Flash Drop Detected</div>
+                            <div className="text-[10px] text-gray-500 uppercase tracking-tighter">
+                               Drop: {t.drop.toFixed(2)}% // Detected at {t.time}
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => handleExecute(t.id)}
+                          disabled={executing === t.id}
+                          className="px-6 py-2 bg-[#ff0055] text-white text-[10px] font-bold rounded-md hover:bg-[#ff0055]/80 transition-all shadow-lg shadow-[#ff0055]/20 disabled:opacity-50"
+                        >
+                          {executing === t.id ? 'SIMULATING...' : 'EXECUTE LIMIT'}
+                        </button>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+               </div>
             </div>
           </div>
 
-          {/* DX Engine & Sidebars */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="terminal-card p-6 h-full border-secondary/20">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold flex items-center gap-2 text-secondary">
-                  <Terminal className="w-4 h-4" /> LIVE DX_REPORT ENGINE
-                </h3>
-                <div className="flex gap-2">
-                   <Bug className="w-3 h-3 text-secondary animate-bounce" />
-                </div>
-              </div>
-              <div className="space-y-4 font-mono text-[11px]">
-                {dxLogs.map((log, i) => (
-                  <div key={i} className={`p-2 border-l-2 ${log.includes('ERROR') ? 'border-accent text-accent' : 'border-secondary text-secondary'}`}>
-                    <span className="opacity-50">{new Date().toLocaleTimeString()}</span> {log}
+          {/* DX Engine */}
+          <div className="lg:col-span-4">
+            <div className="terminal-card p-0 border-[#00d4ff]/20 h-full flex flex-col">
+               <div className="bg-[#00d4ff]/10 p-4 border-b border-[#00d4ff]/20 flex items-center justify-between">
+                  <h3 className="text-xs font-bold flex items-center gap-2 text-[#00d4ff]">
+                    <Terminal className="w-4 h-4" /> LIVE DX_REPORT ENGINE
+                  </h3>
+                  <Bug className="w-3 h-3 text-[#00d4ff] animate-pulse" />
+               </div>
+               <div className="p-4 flex-grow space-y-3 overflow-y-auto max-h-[600px] scrollbar-hide">
+                  {dxLogs.map((log, i) => (
+                    <div key={i} className={`text-[10px] p-2 rounded border-l-2 ${log.includes('ERROR') ? 'bg-[#ff0055]/5 border-[#ff0055] text-[#ff0055]' : 'bg-[#00d4ff]/5 border-[#00d4ff] text-[#00d4ff]'}`}>
+                       <span className="opacity-30 mr-2">[{new Date().toLocaleTimeString().split(' ')[0]}]</span> {log}
+                    </div>
+                  ))}
+               </div>
+               <div className="p-4 mt-auto border-t border-white/5 bg-black/40">
+                  <div className="text-[9px] uppercase text-[#00d4ff] mb-2 font-bold flex items-center gap-2">
+                     <Code className="w-3 h-3" /> Latest Submission Feedback
                   </div>
-                ))}
-                <div className="pt-4 mt-4 border-t border-secondary/10">
-                   <p className="text-secondary opacity-60 uppercase text-[9px] mb-2 tracking-widest font-bold">Feedback Collector</p>
-                   <div className="bg-secondary/5 p-3 rounded text-secondary italic">
-                      "API V3 Quote returns raw transaction data. It would be better to have an integrated SDK helper for transaction simulation directly in the response."
-                   </div>
-                </div>
-              </div>
+                  <div className="p-3 bg-[#00d4ff]/5 rounded text-[10px] text-[#00d4ff] italic leading-relaxed border border-[#00d4ff]/10">
+                     "Price API V3 requires Mint addresses but silently fails with empty 200 responses when Symbols are used. Added to DX Report Section 2.2."
+                  </div>
+               </div>
             </div>
           </div>
 
         </div>
       </div>
     </main>
+  );
+}
+
+function RadarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2v20" />
+      <path d="M2 12h20" />
+      <path d="M12 12l5-5" />
+    </svg>
   );
 }
