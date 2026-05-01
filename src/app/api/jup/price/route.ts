@@ -7,11 +7,19 @@ export async function GET(request: Request) {
   const outputMint = searchParams.get('outputMint');
   const amount = searchParams.get('amount');
   
+  // Standard headers to avoid being blocked by Cloudflare/WAF
+  const commonHeaders = {
+    'Accept': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Origin': 'https://jup.ag',
+    'Referer': 'https://jup.ag/'
+  };
+
   try {
     // 1. Price API Handling
     if (ids) {
       const apiKey = process.env.JUPITER_API_KEY;
-      const headers: Record<string, string> = { 'Accept': 'application/json' };
+      const headers: Record<string, string> = { ...commonHeaders };
       if (apiKey && apiKey !== 'YOUR_JUPITER_API_KEY') {
         headers['x-api-key'] = apiKey;
       }
@@ -23,13 +31,14 @@ export async function GET(request: Request) {
     // 2. Quote API Handling
     if (inputMint && outputMint && amount) {
       const url = `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=50`;
-      console.log(`[JUP_PROXY] Fetching Quote: ${url}`);
       
-      const jupRes = await fetch(url);
+      const jupRes = await fetch(url, { 
+        headers: commonHeaders,
+        cache: 'no-store'
+      });
       
       if (!jupRes.ok) {
         const errorText = await jupRes.text();
-        console.error(`[JUP_PROXY_ERROR] ${jupRes.status}: ${errorText}`);
         return NextResponse.json({ error: `Jupiter Error ${jupRes.status}`, details: errorText }, { status: jupRes.status });
       }
 
@@ -39,7 +48,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
   } catch (error: any) {
-    console.error(`[JUP_PROXY_CRITICAL] ${error.message}`);
     return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }
